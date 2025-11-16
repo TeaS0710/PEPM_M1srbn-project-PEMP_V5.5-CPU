@@ -1,0 +1,36 @@
+# configs/profiles/custom.yml
+
+profile: "custom"
+description: "Profil personnalisable pour expérimentations ad hoc"
+
+corpus_id: "web1"
+view: "ideology_global"
+modality: "web"
+
+label_field: "ideology"
+label_map: "configs/label_maps/ideology_global.yml"
+
+train_prop: 0.8
+min_chars: 0
+max_tokens: 512
+
+tokenizer: "whitespace"
+
+balance_strategy: "none"
+balance_preset: null
+
+families:
+  - "spacy"
+  - "sklearn"
+
+models_spacy:
+  - "spacy_cnn_quick"
+
+models_sklearn:
+  - "tfidf_svm_quick"
+
+models_hf: []
+
+hardware_preset: "small"
+
+debug_mode: false

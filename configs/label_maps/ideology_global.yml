@@ -1,0 +1,14 @@
+# configs/label_maps/ideology_global.yml
+
+mapping:
+  far_left: "gauche"
+  left: "gauche"
+  center_left: "centre"
+  center: "centre"
+  center_right: "centre"
+  right: "droite"
+  far_right: "droite"
+
+unknown_labels:
+  policy: "drop"  # ou "keep" ou "other"
+  other_label: "autre"

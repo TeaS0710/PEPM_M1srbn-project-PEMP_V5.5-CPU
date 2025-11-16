@@ -1,0 +1,37 @@
+# configs/profiles/ideo_quick.yml
+
+profile: "ideo_quick"
+description: "Classification idéologie globale, pipeline rapide (V4)"
+
+corpus_id: "web1"
+view: "ideology_global"
+modality: "web"
+
+label_field: "ideology"
+label_map: "configs/label_maps/ideology_global.yml"
+
+train_prop: 0.8
+min_chars: 280
+max_tokens: 512
+
+tokenizer: "spacy_xx"
+
+balance_strategy: "alpha_total"
+balance_preset: "default_alpha_total"
+
+families:
+  - "check"
+  - "spacy"
+  - "sklearn"
+
+models_spacy:
+  - "spacy_cnn_quick"
+
+models_sklearn:
+  - "tfidf_svm_quick"
+
+models_hf: []
+
+hardware_preset: "small"
+
+debug_mode: false
