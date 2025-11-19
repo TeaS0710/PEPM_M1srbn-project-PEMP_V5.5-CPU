@@ -17,7 +17,7 @@
 # ============================================================================
 
 # Commande Python (adapter si besoin)
-PYTHON ?= python
+PYTHON ?= .venv/bin/python
 
 # Profil par défaut (fichier configs/profiles/$(PROFILE).yml)
 PROFILE ?= ideo_quick
@@ -51,7 +51,11 @@ FAMILY_FLAG = $(if $(FAMILY),--only-family $(FAMILY),)
         check_profile \
         prepare prepare_dry \
         train evaluate pipeline \
-        ideology_skeleton
+        ideology_skeleton \
+        init_dirs setup \
+        check_scripts diagnostics \
+        sysinfo
+
 
 # ============================================================================
 
@@ -80,6 +84,46 @@ help:
 	@echo "  make pipeline PROFILE=ideo_quick"
 	@echo "  make train PROFILE=ideo_full FAMILY=hf"
 	@echo "  make prepare PROFILE=custom OVERRIDES=\"corpus_id=web2 train_prop=0.7\""
+
+# ============================================================================
+
+# Création de l'arborescence standard (Linux) pour données / modèles / rapports / logs
+init_dirs:
+	mkdir -p data/raw/web1
+	mkdir -p data/interim/web1/ideology_global
+	mkdir -p data/processed/web1/ideology_global
+	mkdir -p models/web1/ideology_global
+	mkdir -p reports/web1/ideology_global
+	mkdir -p logs
+	@echo "[init_dirs] Arborescence de base créée."
+	@echo "  - Place ton corpus TEI dans: data/raw/web1/corpus.xml"
+
+# Setup minimal : création d'arbo + check de config
+# Setup minimal : création d'arbo + install deps + check de config
+setup: init_dirs
+	@echo "[setup] Installation des dépendances Python (requirements.txt)..."
+	$(PYTHON) -m pip install -r requirements.txt
+	@echo "[setup] Vérification du profil $(PROFILE)..."
+	-$(PYTHON) scripts/pre/pre_check_config.py --profile $(PROFILE) --verbose || true
+	@echo "[setup] Terminé. Place ton corpus TEI dans data/raw/web1/corpus.xml puis lance :"
+	@echo "    make pipeline PROFILE=$(PROFILE)"
+
+sysinfo:
+	$(PYTHON) scripts/tools/sysinfo.py
+
+
+# ============================================================================
+
+# Vérifier que tous les scripts Python compilent (py_compile)
+check_scripts:
+	@echo "[check_scripts] Compilation de tous les scripts Python (py_compile)..."
+	@find scripts -name '*.py' -print0 | xargs -0 -n1 $(PYTHON) -m py_compile
+	@echo "[check_scripts] OK : syntaxe Python valide pour tous les scripts."
+
+
+diagnostics:
+	$(PYTHON) scripts/pre/pre_check_env.py --profile $(PROFILE) || true
+
 
 # ============================================================================
 
@@ -137,7 +181,6 @@ evaluate:
 pipeline: prepare train evaluate
 
 # ============================================================================
-
 # Génération du squelette d'idéologie à partir du XML
 # (adapter les paramètres si l'interface de make_ideology_skeleton.py diffère)
 ideology_skeleton:
@@ -149,3 +192,4 @@ ideology_skeleton:
 		--top-variants $(TOP_VARIANTS_IDEO)
 	@echo "YAML squelette ideologie écrit dans $(IDEO_MAP_OUT)"
 	@echo "Rapport d'acteurs écrit dans $(IDEO_REPORT_OUT)"
+

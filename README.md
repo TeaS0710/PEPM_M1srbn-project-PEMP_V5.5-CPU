@@ -9,7 +9,7 @@
 
 ---
 
-## 1. Ce que fait V4
+## 1. Ce que fait V4 (en une minute)
 
 V4 sert à :
 
@@ -713,7 +713,7 @@ Plusieurs leviers :
 
 ---
 
-## 11. Migration depuis V1 / V2 / V3
+## 11. Migration depuis V1 / V2 / V3 (résumé)
 
 ### 11.1 Depuis V1
 
@@ -824,6 +824,8 @@ Plusieurs leviers :
 ---
 
 ## 14. Licence & crédits
+
+*(À adapter selon ta situation réelle.)*
 
 * **Code et scripts** : par défaut, licence de type MIT ou GPL recommandée ; choisir et documenter dans un fichier `LICENSE`.
 * **Corpus TEI** : soumis aux conditions de leur source d’origine (licences éditeurs, archives web, etc.).

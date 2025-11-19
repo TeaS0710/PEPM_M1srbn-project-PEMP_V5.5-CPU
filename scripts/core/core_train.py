@@ -17,6 +17,8 @@ from scripts.core.core_utils import (
     debug_print_params,
     PIPELINE_VERSION,
     apply_global_seed,
+    log,
+    print_params_rich,
 )
 
 
@@ -121,7 +123,16 @@ def load_tsv_dataset(params: Dict[str, Any]) -> Tuple[List[str], List[str], List
     job_path = interim_dir / "job.tsv"
 
     if not train_path.exists():
-        raise SystemExit(f"[core_train] train.tsv introuvable: {train_path}")
+        raise SystemExit(
+            "[core_train] train.tsv introuvable: {p}\n"
+            "  -> Aucune donnée d'entraînement trouvée pour "
+            "corpus_id={cid}, view={view}.\n"
+            "  -> Vérifie que core_prepare a bien tourné et qu'il n'a pas "
+            "filtré tous les documents (min_chars, label_map, etc.).".format(
+                p=train_path, cid=corpus_id, view=view
+            )
+        )
+
 
     def read_tsv(path: Path) -> Tuple[List[str], List[str]]:
         texts: List[str] = []
@@ -205,13 +216,16 @@ def save_meta_model(
 def train_spacy_model(params: Dict[str, Any], model_id: str) -> None:
     """
     Entraînement spaCy générique (config-first) pour la famille 'spacy'.
+
     - Charge un template .cfg depuis models.yml (config_template)
-    - Override paths.train/dev avec les DocBin construits par core_prepare (peut être shardé)
+    - Récupère les DocBin construits par core_prepare (possiblement shardés)
+    - Merge les shards en un seul DocBin temporaire si besoin,
+      en respectant éventuellement hardware.max_train_docs_spacy
     - Override hyperparams (epochs, dropout) depuis models.yml
-    - Merge les shards en un seul DocBin temporaire si besoin
     """
     import json, tempfile
     from pathlib import Path
+    from scripts.core.core_utils import get_model_output_dir, ensure_dir, save_meta_model, log
 
     try:
         import spacy
@@ -219,27 +233,41 @@ def train_spacy_model(params: Dict[str, Any], model_id: str) -> None:
         from spacy.util import load_config
         from spacy.cli.train import train as spacy_train
     except ImportError:
-        print("[core_train:spacy] spaCy non installé. Skip spaCy.")
+        log("train", "spacy", "spaCy non installé. Skip spaCy.")
         return
 
     spacy_models = params["models_cfg"]["families"]["spacy"]
-    model_cfg = spacy_models[model_id]
+    model_cfg = spacy_models.get(model_id)
+    if not model_cfg:
+        log("train", "spacy", f"Modèle spaCy '{model_id}' introuvable dans models.yml. Skip.")
+        return
 
     config_template = model_cfg.get("config_template")
     if not config_template:
-        print(f"[core_train:spacy] Pas de 'config_template' pour {model_id}. Skip.")
+        log("train", "spacy", f"Pas de 'config_template' pour {model_id}. Skip.")
         return
 
-    # Localiser les DocBin train/dev (via formats meta ou répertoire connu)
+    # Langue pour le merge DocBin
+    lang = model_cfg.get("lang", "xx")
+
+    # Localiser processed_dir / spacy_dir (utile pour fallback)
     corpus_id = params.get("corpus_id", params.get("corpus", {}).get("corpus_id"))
     view = params.get("view", params.get("profile_raw", {}).get("view"))
     processed_dir = Path("data/processed") / str(corpus_id) / str(view)
     spacy_dir = processed_dir / "spacy"
 
-    # formats_meta.json si présent
     meta_formats_path = processed_dir / "meta_formats.json"
-    train_paths = []
-    dev_paths = []
+    train_paths: List[str] = []
+    dev_paths: List[str] = []
+
+    def _normalize_paths(x) -> List[str]:
+        if not x:
+            return []
+        if isinstance(x, str):
+            return [x]
+        if isinstance(x, list):
+            return [str(p) for p in x]
+        return []
 
     def resolve_paths_from_meta() -> bool:
         if not meta_formats_path.exists():
@@ -247,62 +275,79 @@ def train_spacy_model(params: Dict[str, Any], model_id: str) -> None:
         try:
             fm = json.loads(meta_formats_path.read_text(encoding="utf-8"))
             spacy_meta = fm.get("families", {}).get("spacy", {})
-            tr = spacy_meta.get("train_spacy")
-            dv = spacy_meta.get("job_spacy")
-            if isinstance(tr, list):
-                train_paths.extend([str(spacy_dir / p) for p in tr])
-            elif isinstance(tr, str):
-                train_paths.append(str(spacy_dir / tr))
-            if isinstance(dv, list):
-                dev_paths.extend([str(spacy_dir / p) for p in dv])
-            elif isinstance(dv, str):
-                dev_paths.append(str(spacy_dir / dv))
+            tr = _normalize_paths(spacy_meta.get("train_spacy"))
+            dv = _normalize_paths(spacy_meta.get("job_spacy"))
+            train_paths.extend(tr)
+            dev_paths.extend(dv)
             return bool(train_paths and dev_paths)
         except Exception as e:
-            print(f"[core_train:spacy] Erreur lecture meta_formats.json: {e}")
+            log("train", "spacy", f"Erreur lecture meta_formats.json: {e}")
             return False
 
     ok = resolve_paths_from_meta()
     if not ok:
-        # Fallback simple
-        if (spacy_dir / "train.spacy").exists():
-            train_paths.append(str(spacy_dir / "train.spacy"))
-        if (spacy_dir / "job.spacy").exists():
-            dev_paths.append(str(spacy_dir / "job.spacy"))
+        # Fallback simple: fichiers train.spacy / job.spacy dans le dossier spacy/
+        ts = spacy_dir / "train.spacy"
+        js = spacy_dir / "job.spacy"
+        if ts.exists():
+            train_paths.append(str(ts))
+        if js.exists():
+            dev_paths.append(str(js))
 
     if not (train_paths and dev_paths):
         raise SystemExit("[core_train:spacy] DocBin train/dev introuvables.")
 
-    # Si sharding: fusionner en un seul DocBin pour spaCy train
-    def merge_docbins(paths: List[str], out_path: Path) -> None:
+    # Limite matérielle éventuelle sur le nombre de docs spaCy
+    hw = params.get("hardware", {}) or {}
+    max_docs_spacy = int(hw.get("max_train_docs_spacy", 0) or 0)
+
+    def merge_docbins(paths: List[str], out_path: Path, max_docs: int = 0) -> int:
+        """
+        Merge une liste de DocBin en un seul.
+        max_docs > 0 -> on arrête après max_docs docs (pour limiter RAM / temps).
+        Retourne le nombre de docs écrits.
+        """
+        nlp = spacy.blank(lang)
         db_out = DocBin()
+        total = 0
         for p in paths:
             db_in = DocBin().from_disk(p)
-            for doc in db_in.get_docs(spacy.blank("xx").vocab):  # vocab neutre pour merge
+            for doc in db_in.get_docs(nlp.vocab):
                 db_out.add(doc)
+                total += 1
+                if max_docs and total >= max_docs:
+                    break
+            if max_docs and total >= max_docs:
+                break
         db_out.to_disk(out_path)
+        return total
 
     with tempfile.TemporaryDirectory() as td:
         tmp_dir = Path(td)
         train_merged = tmp_dir / "train_merged.spacy"
         dev_merged = tmp_dir / "dev_merged.spacy"
-        if len(train_paths) > 1:
-            merge_docbins(train_paths, train_merged)
+
+        if len(train_paths) > 1 or max_docs_spacy:
+            n_train_eff = merge_docbins(train_paths, train_merged, max_docs=max_docs_spacy)
             train_bin = str(train_merged)
         else:
             train_bin = train_paths[0]
+            n_train_eff = None  # inconnu sans parsing
+
         if len(dev_paths) > 1:
-            merge_docbins(dev_paths, dev_merged)
+            # Pour dev, on ne limite pas forcément le nb de docs (tu peux mettre max_docs_spacy si tu veux)
+            _ = merge_docbins(dev_paths, dev_merged, max_docs=0)
             dev_bin = str(dev_merged)
         else:
             dev_bin = dev_paths[0]
 
         # Charger le template et override les chemins + hyperparams
         cfg = load_config(config_template)
+        if "paths" not in cfg:
+            cfg["paths"] = {}
         cfg["paths"]["train"] = train_bin
         cfg["paths"]["dev"] = dev_bin
 
-        # Overrides hydratés depuis models.yml
         if "training" not in cfg:
             cfg["training"] = {}
         epochs = model_cfg.get("epochs")
@@ -316,28 +361,35 @@ def train_spacy_model(params: Dict[str, Any], model_id: str) -> None:
         model_dir = get_model_output_dir(params, "spacy", model_id)
         ensure_dir(model_dir)
 
-        # Entraînement via API spaCy (équivalent CLI)
-        print(f"[core_train:spacy] Train {model_id} | epochs={cfg['training'].get('max_epochs')} | template={config_template}")
-
+        # Seed spécifique spaCy
         seed_val = params.get("seed")
         try:
             import spacy.util as spacy_util
             if seed_val is not None and str(seed_val).lower() not in {"none", "null", ""} and int(seed_val) >= 0:
                 spacy_util.fix_random_seed(int(seed_val))
-                print(f"[core_train:spacy] Seed spaCy={int(seed_val)}")
+                log("train", "spacy", f"Seed spaCy={int(seed_val)}")
         except Exception:
             pass
 
+        log(
+            "train",
+            "spacy",
+            f"Train {model_id} | epochs={cfg['training'].get('max_epochs')} "
+            f"| template={config_template} | max_docs_spacy={max_docs_spacy or '∞'}",
+        )
 
+        # Entraînement via API spaCy (équivalent CLI)
         spacy_train(cfg, output_path=model_dir, overrides={})
 
-        # Meta modèle
         extra = {
             "arch": model_cfg.get("arch"),
             "config_template": config_template,
-            "n_train_docs_effective": None,  # inconnu ici (hors parsing DocBin)
+            "n_train_docs_effective": n_train_eff,
+            "lang": lang,
+            "max_docs_spacy": max_docs_spacy or None,
         }
         save_meta_model(params, "spacy", model_id, model_dir, extra=extra)
+
 
 
 
@@ -571,19 +623,21 @@ def train_hf_model(params: Dict[str, Any], model_id: str) -> None:
             seed_int = None
 
     training_args = TrainingArguments(
-        output_dir=str(model_dir),
-        num_train_epochs=trainer_params.get("num_train_epochs", 3),
-        per_device_train_batch_size=trainer_params.get("per_device_train_batch_size", 8),
-        per_device_eval_batch_size=trainer_params.get("per_device_eval_batch_size", 8),
-        gradient_accumulation_steps=trainer_params.get("gradient_accumulation_steps", 1),
-        learning_rate=trainer_params.get("learning_rate", 5e-5),
-        weight_decay=trainer_params.get("weight_decay", 0.0),
-        evaluation_strategy=trainer_params.get("evaluation_strategy", "no"),
-        save_strategy=trainer_params.get("save_strategy", "no"),
-        logging_steps=trainer_params.get("logging_steps", 50),
-        # on n'inclut seed/data_seed que si seed_int est valide
+        output_dir=str(output_dir),
+        learning_rate=learning_rate,
+        per_device_train_batch_size=train_batch_size,
+        per_device_eval_batch_size=eval_batch_size,
+        num_train_epochs=num_train_epochs,
+        weight_decay=weight_decay,
+        warmup_ratio=warmup_ratio,
+        gradient_accumulation_steps=grad_accum,
+        evaluation_strategy="no",
+        save_strategy="epoch",
+        logging_strategy="epoch",
+        load_best_model_at_end=False,
         **({"seed": seed_int, "data_seed": seed_int} if seed_int is not None else {}),
     )
+
 
 
 
@@ -686,7 +740,8 @@ def main() -> None:
 
     # Seed de base pour une reproductibilité minimaliste
     seed_applied = apply_global_seed(params.get("seed"))
-    print(f"[core_train] Global seed: {'appliquée' if seed_applied else 'non appliquée'} ({params.get('seed')})")
+    log("train", "seed", f"Global seed: {'appliquée' if seed_applied else 'non appliquée'} ({params.get('seed')})")
+
 
     hw = params.get("hardware", {})
     blas_threads = hw.get("blas_threads", 1)

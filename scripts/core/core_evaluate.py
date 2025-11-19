@@ -454,8 +454,10 @@ def main() -> None:
         debug_print_params(params)
 
     # Seed globale optionnelle (comme dans core_train)
+    from scripts.core.core_utils import apply_global_seed, log
     seed_applied = apply_global_seed(params.get("seed"))
-    print(f"[core_evaluate] Global seed: {'appliquée' if seed_applied else 'non appliquée'} ({params.get('seed')})")
+    log("evaluate", "seed", f"Global seed: {'appliquée' if seed_applied else 'non appliquée'} ({params.get('seed')})")
+
 
     hw = params.get("hardware", {})
     blas_threads = hw.get("blas_threads", 1)

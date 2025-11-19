@@ -18,6 +18,7 @@ from scripts.core.core_utils import (
     load_label_map,
     debug_print_params,
     PIPELINE_VERSION,
+    log,
 )
 
 
@@ -350,35 +351,44 @@ def build_view(params: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
 
     # --- Déduplication optionnelle (par doc), AVANT équilibrage ---
 
-    dedup_on = str(params.get("dedup_on", "none")).strip().lower()
-    n_before = len(docs)
-    if dedup_on in {"text", "id"}:
+    log("prepare", "collect", f"Docs retenus avant dedup: {len(docs)}")
+    label_counts_raw = Counter(d["label"] for d in docs)
+
+    dedup_on = str(params.get("dedup_on") or "none").strip().lower()
+    if dedup_on not in {"none", "", "no", "id", "text", "id_and_text"}:
+        log("prepare", "dedup", f"Valeur inconnue '{dedup_on}', fallback none")
+        dedup_on = "none"
+
+    if dedup_on != "none":
         seen = set()
-        def key_fn(d):
-            if dedup_on == "text":
-                return d["text"]
-            # fallback sur texte si pas d'id
-            return d.get("xml_id") or d["text"]
-
-        deduped = []
+        deds = []
         for d in docs:
-            k = key_fn(d)
-            if k in seen:
+            if dedup_on == "id":
+                key = d.get("id") or d.get("xml_id") or d["text"]
+            elif dedup_on == "text":
+                key = " ".join(d["text"].split()).strip().lower()
+            else:  # id_and_text
+                key = (d.get("id") or d.get("xml_id") or "").strip() + "||" + " ".join(d["text"].split()).strip().lower()
+            if key in seen:
                 continue
-            seen.add(k)
-            deduped.append(d)
-        docs = deduped
-    elif dedup_on not in {"", "none", "no", "0"}:
-        print(f"[core_prepare] WARNING: valeur dedup_on inconnue '{dedup_on}', ignorée")
+            seen.add(key)
+            deds.append(d)
+        log("prepare", "dedup", f"Dedup '{dedup_on}': {len(docs)} -> {len(deds)}")
+        docs = deds
 
-    # Stats labels avant équilibrage
-    label_counts_before = Counter(d["label"] for d in docs)
+    # Recompter après dedup
+    label_counts = Counter(d["label"] for d in docs)
 
 
     # Appliquer l'équilibrage
     docs_balanced, label_counts_balanced = apply_balance(
-        docs, params, label_counts
+        docs,
+        label_field=params["label_field"],
+        strategy=params.get("balance_strategy", "none"),
+        preset_name=params.get("balance_preset"),
+        balance_cfg=params["balance_cfg"],
     )
+
 
 
     print(f"[core_prepare] Docs après équilibrage ({balance_strategy}): {len(docs_balanced)}")
@@ -411,16 +421,20 @@ def build_view(params: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
         "train_prop": train_prop,
         "seed": seed,
         "tokenizer": tokenizer_name,
-        "n_docs_raw": len(docs),
-        "n_docs_balanced": len(docs_balanced),
-        "n_docs_train": len(train_docs),
-        "n_docs_job": len(job_docs),
+        "dedup_on": dedup_on,
+        "n_docs_raw": int(len(docs)),
+        "n_docs_balanced": int(len(docs_balanced)),
+        "n_docs_train": int(len(train_docs)),
+        "n_docs_job": int(len(job_docs)),
         "label_counts_before": dict(label_counts),
         "label_counts_after": dict(label_counts_balanced),
         "modality_counts": dict(modality_counts),
         "params_hardware": params.get("hardware", {}),
         "pipeline_version": PIPELINE_VERSION,
     }
+    if params.get("class_weights") is not None:
+        meta["label_weights"] = params["class_weights"]
+
 
     # Si on utilise une stratégie par poids, on loggue aussi les poids par label
     class_weights = params.get("class_weights")
@@ -468,6 +482,7 @@ def write_tsv(path: str, docs: List[Dict[str, Any]]) -> None:
                     "text": d["text"],
                 }
             )
+
 
 
 # ----------------- Équilibrage -----------------
@@ -669,81 +684,130 @@ def apply_balance(
 
 def build_formats(params: Dict[str, Any], meta_view: Dict[str, Any]) -> None:
     """
-    Construit les formats aval à partir de train.tsv / job.tsv.
-    - spaCy : DocBin (train.spacy, job.spacy)
-    - sklearn/hf/check : utilisent directement les TSV, référencés dans meta_formats.json
+    Construit les formats pour chaque famille:
+      - spaCy : DocBin shardés (train_000.spacy, ...)
+      - sklearn / hf / check : référencent les TSV.
+    Ecrit data/processed/<corpus>/<view>/meta_formats.json
     """
-    corpus_id = meta_view["corpus_id"]
-    view = meta_view["view"]
-    families = list(params.get("families", []) or [])
+    from scripts.core.core_utils import log
+
+    families = params.get("families", []) or []
+    corpus_id = params.get("corpus_id", params["corpus"].get("corpus_id", "unknown_corpus"))
+    view = params.get("view", "unknown_view")
 
     interim_dir = Path("data") / "interim" / corpus_id / view
     processed_root = Path("data") / "processed" / corpus_id / view
     processed_root.mkdir(parents=True, exist_ok=True)
 
     train_tsv = interim_dir / "train.tsv"
-    job_tsv = interim_dir / "job.tsv"
+    job_tsv   = interim_dir / "job.tsv"
 
-    formats_meta: Dict[str, Any] = {
+    formats_meta = {
+        "profile": params.get("profile"),
         "corpus_id": corpus_id,
         "view": view,
-        "pipeline_version": PIPELINE_VERSION,
         "families": {},
     }
 
-    # ---- spaCy : DocBin simples (pas de doublon) ----
+    # ---------- spaCy ----------
     if "spacy" in families:
-        from spacy.tokens import DocBin
-        lang = get_default_spacy_lang(params)
+        # import paresseux
+        try:
+            import spacy
+            from spacy.tokens import DocBin
+        except Exception as e:
+            raise SystemExit(f"[core_prepare:formats] spaCy requis pour générer les DocBin : {e}")
+
+        models_cfg   = params.get("models_cfg", {}).get("families", {}).get("spacy", {})
+        models_spacy = params.get("models_spacy") or []
+
+        # Déterminer la langue (premier modèle qui en fournit une)
+        lang = "fr"
+        for mid in models_spacy:
+            mcfg = models_cfg.get(mid) or {}
+            if "lang" in mcfg:
+                lang = mcfg["lang"]
+                break
+
         spacy_dir = processed_root / "spacy"
         spacy_dir.mkdir(parents=True, exist_ok=True)
 
-        def tsv_to_docbin(in_tsv: Path, out_spacy: Path) -> int:
-            import spacy as _sp
-            nlp = _sp.blank(lang)
-            db = DocBin()
-            n = 0
-            with in_tsv.open("r", encoding="utf-8", newline="") as f:
+        shard_docs = int(params.get("hardware", {}).get("spacy_shard_docs", 0)) or 0
+        if shard_docs < 1:
+            shard_docs = 0  # pas de sharding
+
+        def _build_docbins(tsv_path: Path, prefix: str) -> Tuple[List[str], int, List[str]]:
+            """
+            Retourne: (docbin_paths, total_docs, labels_sorted)
+            """
+            nlp = spacy.blank(lang)
+            labels_set: set = set()
+            paths: List[str] = []
+            total = 0
+            shard_idx = 0
+            db = DocBin(store_user_data=True)
+            docs_in_shard = 0
+
+            with tsv_path.open("r", encoding="utf-8", newline="") as f:
                 reader = csv.DictReader(f, delimiter="\t")
                 for row in reader:
-                    text = row.get("text", "")
+                    text = row.get("text") or ""
                     label = row.get("label")
                     if not text or not label:
                         continue
+                    labels_set.add(label)
                     doc = nlp.make_doc(text)
-                    # encodage simple des gold cats (1.0)
                     doc.cats = {label: 1.0}
                     db.add(doc)
-                    n += 1
-            db.to_disk(out_spacy)
-            return n
+                    total += 1
+                    docs_in_shard += 1
 
-        n_train = tsv_to_docbin(train_tsv, spacy_dir / "train.spacy")
-        n_job = tsv_to_docbin(job_tsv, spacy_dir / "job.spacy") if job_tsv.exists() else 0
+                    # flush shard si besoin
+                    if shard_docs and docs_in_shard >= shard_docs:
+                        outp = spacy_dir / f"{prefix}_{shard_idx:03d}.spacy"
+                        db.to_disk(outp)
+                        paths.append(str(outp))
+                        shard_idx += 1
+                        db = DocBin(store_user_data=True)
+                        docs_in_shard = 0
+
+            # flush dernier shard
+            if docs_in_shard > 0 or (not shard_docs and total > 0):
+                outp = spacy_dir / (f"{prefix}_{shard_idx:03d}.spacy" if shard_docs else f"{prefix}.spacy")
+                db.to_disk(outp)
+                paths.append(str(outp))
+
+            return paths, total, sorted(labels_set)
+
+        log("prepare", "spacy", "Construction des DocBin...")
+        train_paths, n_train, labels_sorted = _build_docbins(train_tsv, "train")
+        job_paths,   n_job,   _             = _build_docbins(job_tsv,   "job")
 
         formats_meta["families"]["spacy"] = {
-            "source": "docbin",
-            "train_spacy": "spacy/train.spacy",
-            "job_spacy": "spacy/job.spacy" if n_job > 0 else None,
+            "dir": str(spacy_dir),
+            "train_spacy": train_paths,
+            "job_spacy": job_paths,
+            "labels_set": labels_sorted,
             "lang": lang,
             "n_train_docs": n_train,
             "n_job_docs": n_job,
+            "spacy_shard_docs": shard_docs,
         }
 
-    # ---- familles TSV (sklearn, hf, check) ----
+    # ---------- sklearn / hf / check : référence TSV ----------
     for fam in ("sklearn", "hf", "check"):
         if fam in families:
             formats_meta["families"][fam] = {
-                "source": "tsv",
                 "train_tsv": str(train_tsv),
-                "job_tsv": str(job_tsv) if job_tsv.exists() else None,
+                "job_tsv": str(job_tsv),
             }
 
-    # Écriture meta_formats.json
-    meta_formats_path = processed_root / "meta_formats.json"
-    with meta_formats_path.open("w", encoding="utf-8") as f:
+    meta_path = processed_root / "meta_formats.json"
+    with meta_path.open("w", encoding="utf-8") as f:
         json.dump(formats_meta, f, ensure_ascii=False, indent=2)
-    print(f"[core_prepare] meta_formats.json écrit : {meta_formats_path}")
+
+    log("prepare", "formats", f"Formats écrits → {meta_path}")
+
 
 
 
@@ -761,15 +825,14 @@ def main() -> None:
     if args.verbose:
         debug_print_params(params)
 
-    # Seed globale optionnelle (random/numpy/torch/spaCy)
-    from scripts.core.core_utils import apply_global_seed
+    from scripts.core.core_utils import apply_global_seed, log
     seed_applied = apply_global_seed(params.get("seed"))
-    print(f"[core_prepare] Global seed: {'appliquée' if seed_applied else 'non appliquée'} ({params.get('seed')})")
+    log("prepare", "seed", f"Global seed: {'appliquée' if seed_applied else 'non appliquée'} ({params.get('seed')})")
+    log("prepare", "info", f"tokenizer={params.get('tokenizer','split')} dedup_on={params.get('dedup_on','none')}")
 
-    print(f"[core_prepare] tokenizer={params.get('tokenizer','split')}  dedup_on={params.get('dedup_on','none')}")
-
-    meta_view = build_view(params, dry_run=args.dry_run, verbose=args.verbose)
+    meta_view = build_view(params, dry_run=args.dry_run)
     if not args.dry_run:
         build_formats(params, meta_view)
+
 
 

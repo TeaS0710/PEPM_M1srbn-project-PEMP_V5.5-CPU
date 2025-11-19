@@ -60,11 +60,11 @@ def text_len_chars(tei_el: ET.Element) -> int:
 
 def parse_args():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--corpus", type=Path, required=True, help="teiCorpus XML (corpus.xml)")
-    ap.add_argument("--out-yaml", type=Path, default=Path("ideology.yml"), help="fichier YAML de sortie")
-    ap.add_argument("--out-report", type=Path, default=Path("actors_counts.tsv"), help="rapport TSV (stats)")
-    ap.add_argument("--min-chars", type=int, default=0, help="longueur mini pour compter un doc (0=pas de filtre)")
-    ap.add_argument("--top-variants", type=int, default=3, help="nb de variantes originales à afficher en commentaire")
+    ap.add_argument("--corpus", type=Path, required=True)
+    ap.add_argument("--out-yaml", type=Path, default=Path("ideology.yml"))
+    ap.add_argument("--out-report", type=Path, default=Path("actors_counts.tsv"))
+    ap.add_argument("--min-chars", type=int, default=0)
+    ap.add_argument("--top-variants", type=int, default=3)
     return ap.parse_args()
 
 def main():
