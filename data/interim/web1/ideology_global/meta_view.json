@@ -1,0 +1,43 @@
+{
+  "profile": "ideo_quick",
+  "corpus_id": "web1",
+  "view": "ideology_global",
+  "modality_filter": "web",
+  "label_field": "ideology",
+  "label_fields": [
+    "ideology",
+    "domain",
+    "crawl"
+  ],
+  "label_map": "configs/label_maps/ideology_global.yml",
+  "balance_strategy": "alpha_total",
+  "balance_preset": "uniform_small",
+  "train_prop": 0.8,
+  "seed": 42,
+  "tokenizer": "split",
+  "dedup_on": "text",
+  "n_docs_raw": 5,
+  "n_docs_balanced": 5,
+  "n_docs_train": 4,
+  "n_docs_job": 1,
+  "label_counts_before": {
+    "far_right": 3,
+    "right": 2
+  },
+  "label_counts_after": {
+    "right": 2,
+    "far_right": 3
+  },
+  "modality_counts": {
+    "web": 5
+  },
+  "params_hardware": {
+    "desc": "Laptop / petite machine",
+    "ram_gb": 8,
+    "max_procs": 2,
+    "blas_threads": 1,
+    "tsv_chunk_rows": 20000,
+    "spacy_shard_docs": 10000
+  },
+  "pipeline_version": "4.0.0-dev"
+}

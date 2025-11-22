@@ -1,0 +1,2 @@
+id	label	label_raw	modality	text
+doc_000004	right	politiquemagazine.fr	web	Editorial Editorial test pour Politique Magazine. Ce texte synthétique rappelle les positions du magazine sur les questions économiques et sociales tout en restant suffisamment long pour passer les filtres min_chars. La rédaction souligne les enjeux contemporains et propose une analyse plus nuancée que les articles précédents de l’échantillon. Il introduit une seconde occurrence du label right afin de sécuriser l’entraînement spaCy et sklearn en mode classes exclusives.

@@ -1,0 +1,32 @@
+{
+  "profile": "ideo_quick",
+  "corpus_id": "web1",
+  "view": "ideology_global",
+  "families": {
+    "spacy": {
+      "dir": "data/processed/web1/ideology_global/spacy",
+      "train_spacy": [
+        "data/processed/web1/ideology_global/spacy/train_000.spacy"
+      ],
+      "job_spacy": [
+        "data/processed/web1/ideology_global/spacy/job_000.spacy"
+      ],
+      "labels_set": [
+        "far_right",
+        "right"
+      ],
+      "lang": "fr",
+      "n_train_docs": 4,
+      "n_job_docs": 1,
+      "spacy_shard_docs": 10000
+    },
+    "sklearn": {
+      "train_tsv": "data/interim/web1/ideology_global/train.tsv",
+      "job_tsv": "data/interim/web1/ideology_global/job.tsv"
+    },
+    "check": {
+      "train_tsv": "data/interim/web1/ideology_global/train.tsv",
+      "job_tsv": "data/interim/web1/ideology_global/job.tsv"
+    }
+  }
+}

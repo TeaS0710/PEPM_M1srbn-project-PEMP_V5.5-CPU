@@ -1,0 +1,12 @@
+{
+  "family": "check",
+  "model_id": "check_default",
+  "n_eval_docs": 1,
+  "labels": [
+    "right"
+  ],
+  "label_counts": {
+    "right": 1
+  },
+  "note": "Famille 'check' = pseudo-modèle, évaluation = stats brutes sur job.tsv"
+}
