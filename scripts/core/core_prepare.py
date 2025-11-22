@@ -6,9 +6,14 @@ import json
 import os
 import random
 import re
+import sys
 from collections import Counter, defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from pathlib import Path
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 import xml.etree.ElementTree as ET
 
@@ -96,14 +101,14 @@ def _get_spacy_nlp(lang: str):
 def count_tokens(text: str, tokenizer_name: str) -> int:
     """
     tokenizer_name:
-      - 'split'  -> text.split() (whitespace)
-      - 'simple' -> segmentation simple (fallback historique)
-      - 'spacy:<lang>' (ex: 'spacy:fr', 'spacy:xx')
+      - 'split' / 'whitespace' -> text.split() (tokenisation espaces)
+      - 'simple'               -> segmentation simple (fallback historique)
+      - 'spacy:<lang>'         -> ex: 'spacy:fr', 'spacy:xx'
     """
     name = (tokenizer_name or "split").strip().lower()
     if name == "simple":
         return len([t for t in text.replace("\n", " ").split(" ") if t])
-    if name == "split":
+    if name in {"split", "whitespace"}:
         return len(text.split())
     if name.startswith("spacy:"):
         lang = name.split(":", 1)[1] or "xx"
@@ -428,13 +433,6 @@ def build_view(params: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
     }
     if params.get("class_weights") is not None:
         meta["label_weights"] = params["class_weights"]
-
-
-    # Si on utilise une stratégie par poids, on loggue aussi les poids par label
-    class_weights = params.get("class_weights")
-    if class_weights is not None:
-        meta["label_weights"] = class_weights
-
 
     if dry_run:
         print("[core_prepare] Dry-run activé, aucun TSV écrit.")
@@ -827,6 +825,10 @@ def main() -> None:
     meta_view = build_view(params, dry_run=args.dry_run)
     if not args.dry_run:
         build_formats(params, meta_view)
+
+
+if __name__ == "__main__":
+    main()
 
 
 
