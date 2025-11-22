@@ -193,9 +193,10 @@ strategies:
 
 ### 3.4 Champs label : liste et normalisation
 
-* `label_field` peut désormais être une **chaîne** ou une **liste** (`label_fields`) ; le premier champ trouvant un `<term type="...">` est utilisé.
-* Lorsqu'un `label_map` est fourni, les labels bruts sont testés **dans leur forme originale** puis **normalisée** (minuscules, espaces/`-`/`/` → `_`, caractères spéciaux nettoyés). Exemple : `crawl-actionfrancaise-20251003_000000` est testé tel quel puis en `crawl_actionfrancaise_20251003_000000` pour matcher les clés YAML.
-* Les profils existants restent compatibles : la liste n'est qu'un fallback optionnel, la normalisation n'interfère pas avec les correspondances exactes.
+* `label_field` peut être une **chaîne** ou une **liste** (`label_fields`) ; priorité à la liste si présente, avec fallback vers le premier champ trouvant un `<term type="...">`.
+* Les clés du `label_map` sont normalisées (minuscules, espaces/`-`/`/` → `_`, caractères spéciaux nettoyés) et les labels bruts sont toujours convertis dans ce format avant lookup. Exemple : `crawl-actionfrancaise-20251003_000000` → `crawl_actionfrancaise_20251003_000000` pour matcher la clé YAML.
+* En l'absence de `label_map`, le label utilisé est la version **normalisée** du terme brut, garantissant cohérence de casse et de séparateurs.
+* Les profils existants restent compatibles : la liste reste optionnelle et `label_field` seul fonctionne toujours.
 
 ---
 
@@ -411,6 +412,13 @@ flowchart TB
   CFG --> CORE
   CORE --> DATA
 ```
+
+### 5.3 Robustesse & smoke-tests
+
+* **Labels** : `label_fields` permet de chaîner plusieurs sources (`ideology`, puis `domain`, puis `crawl`) et les clés de `label_map` sont **normalisées** (lowercase + `_`) avant lookup.
+* **sklearn** : les params `ngram_range` sont convertis en tuple même s’ils viennent en liste/str, et `min_df` est automatiquement borné au nb de docs pour éviter l’erreur `max_df corresponds to < documents than min_df` lors des mini-démos.
+* **spaCy** : l’évaluation charge `model-best/` ou `model-last/` si le dossier racine n’a pas de `meta.json` (cas des sorties `spacy train`).
+* **Jeu de démo** : un TEI minimal est disponible sous `data/raw/web1/corpus.xml` pour rejouer rapidement `make prepare/train/evaluate PROFILE=ideo_quick` sans dépendre d’un gros corpus.
 
 #### `hardware.yml`
 

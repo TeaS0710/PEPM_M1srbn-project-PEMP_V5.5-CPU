@@ -230,7 +230,6 @@ def train_spacy_model(params: Dict[str, Any], model_id: str) -> None:
     """
     import json, tempfile
     from pathlib import Path
-    from scripts.core.core_utils import get_model_output_dir, ensure_dir, save_meta_model, log
 
     try:
         import spacy
@@ -353,6 +352,12 @@ def train_spacy_model(params: Dict[str, Any], model_id: str) -> None:
         cfg["paths"]["train"] = train_bin
         cfg["paths"]["dev"] = dev_bin
 
+        # Forcer la structure corpora.* attendue par spaCy pour éviter
+        # l'interpolation ambiguë lorsque le template est modifié à chaud.
+        cfg.setdefault("corpora", {})
+        cfg["corpora"]["train"] = {"@readers": "spacy.Corpus.v1", "path": train_bin}
+        cfg["corpora"]["dev"] = {"@readers": "spacy.Corpus.v1", "path": dev_bin}
+
         if "training" not in cfg:
             cfg["training"] = {}
         epochs = model_cfg.get("epochs")
@@ -384,7 +389,9 @@ def train_spacy_model(params: Dict[str, Any], model_id: str) -> None:
         )
 
         # Entraînement via API spaCy (équivalent CLI)
-        spacy_train(cfg, output_path=model_dir, overrides={})
+        cfg_path = tmp_dir / "resolved_config.cfg"
+        cfg.to_disk(cfg_path)
+        spacy_train(cfg_path, output_path=model_dir, overrides={})
 
         extra = {
             "arch": model_cfg.get("arch"),
@@ -409,6 +416,18 @@ def train_sklearn_model(params: Dict[str, Any], model_id: str) -> None:
     est_class = import_string(est_cfg["class"])
 
     vect_params = dict(vect_cfg.get("params", {}))
+    # sklearn attend un tuple pour ngram_range : accepter list/str et convertir.
+    nr = vect_params.get("ngram_range")
+    if isinstance(nr, list):
+        vect_params["ngram_range"] = tuple(nr)
+    elif isinstance(nr, str):
+        try:
+            parts = [p.strip() for p in nr.strip("()[] ").split(",") if p.strip()]
+            if len(parts) == 2:
+                vect_params["ngram_range"] = (int(parts[0]), int(parts[1]))
+        except Exception:
+            pass
+
     est_params = dict(est_cfg.get("params", {}))
 
     # Permettre random_state=from_seed dans models.yml
@@ -423,6 +442,13 @@ def train_sklearn_model(params: Dict[str, Any], model_id: str) -> None:
     # Charger les données depuis train.tsv / job.tsv
     train_texts, train_labels, job_texts = load_tsv_dataset(params)
 
+    # Sur petits jeux (ex: smoke-tests), min_df doit rester ≤ nb de docs pour éviter
+    # l'exception "max_df corresponds to < documents than min_df".
+    n_docs_train = len(train_texts)
+    min_df = vect_params.get("min_df")
+    if isinstance(min_df, int) and n_docs_train:
+        vect_params["min_df"] = min(min_df, max(1, n_docs_train))
+
     # Sous-échantillonnage éventuel en mode debug
     train_texts, train_labels = maybe_debug_subsample(train_texts, train_labels, params)
 
@@ -435,11 +461,19 @@ def train_sklearn_model(params: Dict[str, Any], model_id: str) -> None:
         train_texts = train_texts[:max_docs]
         train_labels = train_labels[:max_docs]
 
-    # Poids de classe éventuels (stratégie 'class_weights')
-    if params.get("balance_strategy") == "class_weights":
-        label_counts = Counter(train_labels)
+    # Poids de classe éventuels :
+    # - si est_params.class_weight == 'from_balance', on calcule toujours (utile même
+    #   quand balance_strategy != class_weights pour éviter une erreur sklearn).
+    # - sinon, on ne remplit que quand balance_strategy == class_weights.
+    label_counts = Counter(train_labels)
+    class_weights = None
+    if est_params.get("class_weight") == "from_balance":
         class_weights = compute_class_weights_from_counts(label_counts)
-        if est_params.get("class_weight") == "from_balance":
+        est_params = dict(est_params)
+        est_params["class_weight"] = class_weights
+    elif params.get("balance_strategy") == "class_weights":
+        class_weights = compute_class_weights_from_counts(label_counts)
+        if est_params.get("class_weight") in (None, "balanced"):
             est_params = dict(est_params)
             est_params["class_weight"] = class_weights
 

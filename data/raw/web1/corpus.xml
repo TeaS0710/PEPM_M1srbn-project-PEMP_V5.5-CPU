@@ -1,0 +1,332 @@
+<?xml version='1.0' encoding='utf-8'?>
+<tei:teiCorpus xmlns:tei="http://www.tei-c.org/ns/1.0" xmlns:xml="http://www.w3.org/XML/1998/namespace">
+  <tei:teiHeader>
+    <tei:fileDesc>
+      <tei:titleStmt>
+        <tei:title>Corpus TEI (démo V4)</tei:title>
+      </tei:titleStmt>
+      <tei:publicationStmt>
+        <tei:publisher>local</tei:publisher>
+        <tei:date when="2025-10-05T20:10:19Z" />
+      </tei:publicationStmt>
+      <tei:sourceDesc>
+        <tei:p>Sources de démonstration pour tests unitaires.</tei:p>
+      </tei:sourceDesc>
+    </tei:fileDesc>
+  </tei:teiHeader>
+
+  <tei:TEI xml:id="doc_000000">
+    <tei:teiHeader>
+      <tei:fileDesc>
+        <tei:titleStmt>
+          <tei:title>Accueil - Action française</tei:title>
+          <tei:respStmt>
+            <tei:resp>Extraction/normalisation</tei:resp>
+            <tei:name>tei-corpus-mp</tei:name>
+          </tei:respStmt>
+        </tei:titleStmt>
+        <tei:publicationStmt>
+          <tei:publisher>local</tei:publisher>
+          <tei:pubPlace>machine</tei:pubPlace>
+          <tei:date when="2025-10-05T20:10:19Z" />
+          <tei:availability status="restricted">
+            <tei:licence>internal-use</tei:licence>
+          </tei:availability>
+        </tei:publicationStmt>
+        <tei:sourceDesc>
+          <tei:biblStruct>
+            <tei:idno type="url">https://www.actionfrancaise.net/</tei:idno>
+            <tei:idno type="path">pages/www.actionfrancaise.net/BvSJVrTma2qn.html.gz</tei:idno>
+            <tei:idno type="md5_html">51b3eb3d757891e804a3fe91ebb20e47</tei:idno>
+          </tei:biblStruct>
+        </tei:sourceDesc>
+      </tei:fileDesc>
+      <tei:profileDesc>
+        <tei:langUsage>
+          <tei:language ident="fr">fr</tei:language>
+        </tei:langUsage>
+        <tei:textClass>
+          <tei:keywords scheme="custom">
+            <tei:term type="domain">actionfrancaise.net</tei:term>
+            <tei:term type="suffix">net</tei:term>
+            <tei:term type="class">CORE</tei:term>
+            <tei:term type="crawl">crawl-actionfrancaise-20251003_000000</tei:term>
+            <tei:term type="published">2025-09-14</tei:term>
+            <tei:term type="date_source">trafilatura</tei:term>
+            <tei:term type="folder_path">crawl-actionfrancaise-20251003_000000/pages/www.actionfrancaise.net</tei:term>
+            <tei:term type="folder">crawl-actionfrancaise-20251003_000000</tei:term>
+            <tei:term type="folder">pages</tei:term>
+            <tei:term type="folder">www.actionfrancaise.net</tei:term>
+          </tei:keywords>
+        </tei:textClass>
+      </tei:profileDesc>
+      <tei:encodingDesc>
+        <tei:appInfo><tei:application version="2.0.0">trafilatura</tei:application></tei:appInfo>
+      </tei:encodingDesc>
+      <tei:revisionDesc>
+        <tei:change>md5_text=94316c7a68fdc0de8c96a6a3e43e785a; chars=1369</tei:change>
+      </tei:revisionDesc>
+    </tei:teiHeader>
+    <tei:text xml:lang="fr">
+      <tei:body>
+        <tei:div type="article">
+          <tei:head>Accueil - Action française</tei:head>
+          <tei:p>La Restauration de la Monarchie en France. L’Action française, qui compte environ 13 fédérations réparties sur tout le territoire, est animée par une double préoccupation : elle entend préparer la restauration de la monarchie et, dans l’attente du retour du roi, œuvrer pour la défense de l’intérêt national. Le nationalisme conduit logiquement au royalisme. Royalistes parce que nationalistes, les adhérents de l’Action française s’appliquent à défendre l’héritage en l’absence de l’héritier. Ils essaient de limiter les méfaits républicains en les dénonçant par la propagande et en les combattant par l’action.</tei:p>
+        </tei:div>
+      </tei:body>
+    </tei:text>
+    <tei:standOff><tei:listAnnotation /></tei:standOff>
+  </tei:TEI>
+
+  <tei:TEI xml:id="doc_000001">
+    <tei:teiHeader>
+      <tei:fileDesc>
+        <tei:titleStmt>
+          <tei:title>Vous avez cherché combat - Action française</tei:title>
+          <tei:respStmt>
+            <tei:resp>Extraction/normalisation</tei:resp>
+            <tei:name>tei-corpus-mp</tei:name>
+          </tei:respStmt>
+        </tei:titleStmt>
+        <tei:publicationStmt>
+          <tei:publisher>local</tei:publisher>
+          <tei:pubPlace>machine</tei:pubPlace>
+          <tei:date when="2025-10-05T20:10:19Z" />
+          <tei:availability status="restricted">
+            <tei:licence>internal-use</tei:licence>
+          </tei:availability>
+        </tei:publicationStmt>
+        <tei:sourceDesc>
+          <tei:biblStruct>
+            <tei:idno type="url">https://www.actionfrancaise.net/search/combat</tei:idno>
+            <tei:idno type="path">pages/www.actionfrancaise.net/dxjZRYvfCwMS.html.gz</tei:idno>
+            <tei:idno type="md5_html">06b0649d35176b571fbd3c960602a9f3</tei:idno>
+          </tei:biblStruct>
+        </tei:sourceDesc>
+      </tei:fileDesc>
+      <tei:profileDesc>
+        <tei:langUsage>
+          <tei:language ident="fr">fr</tei:language>
+        </tei:langUsage>
+        <tei:textClass>
+          <tei:keywords scheme="custom">
+            <tei:term type="domain">actionfrancaise.net</tei:term>
+            <tei:term type="suffix">net</tei:term>
+            <tei:term type="class">CORE</tei:term>
+            <tei:term type="crawl">crawl-actionfrancaise-20251003_000000</tei:term>
+            <tei:term type="published">2025-09-30</tei:term>
+            <tei:term type="date_source">trafilatura</tei:term>
+            <tei:term type="folder_path">crawl-actionfrancaise-20251003_000000/pages/www.actionfrancaise.net</tei:term>
+            <tei:term type="folder">crawl-actionfrancaise-20251003_000000</tei:term>
+            <tei:term type="folder">pages</tei:term>
+            <tei:term type="folder">www.actionfrancaise.net</tei:term>
+          </tei:keywords>
+        </tei:textClass>
+      </tei:profileDesc>
+      <tei:encodingDesc>
+        <tei:appInfo><tei:application version="2.0.0">trafilatura</tei:application></tei:appInfo>
+      </tei:encodingDesc>
+      <tei:revisionDesc>
+        <tei:change>md5_text=1ae53b6cf813fb1e2b61c4dfcc2df31a; chars=1236</tei:change>
+      </tei:revisionDesc>
+    </tei:teiHeader>
+    <tei:text xml:lang="fr">
+      <tei:body>
+        <tei:div type="article">
+          <tei:head>Vous avez cherché combat</tei:head>
+          <tei:p>Europe relinquenda est ! Par Philippe Germain. Dans l’ombre d’un Occident-Atlantique qui s’est délité sous les coups de boutoir de Donald Trump, la France semble fidèle à l’Europe, mais c’est une fidélité de façade. Vulgarisation n°32 : préparation au combat royaliste. Cette chronique décrit l’activité militante récente et explique pourquoi certains publics voient encore l’Action française comme un acteur central du débat monarchiste. Le texte dépasse largement quelques phrases et sert à tester le filtrage min_chars.</tei:p>
+        </tei:div>
+      </tei:body>
+    </tei:text>
+    <tei:standOff><tei:listAnnotation /></tei:standOff>
+  </tei:TEI>
+
+  <tei:TEI xml:id="doc_000002">
+    <tei:teiHeader>
+      <tei:fileDesc>
+        <tei:titleStmt>
+          <tei:title>Le blog officiel de Bernard Lugan</tei:title>
+          <tei:respStmt>
+            <tei:resp>Extraction/normalisation</tei:resp>
+            <tei:name>tei-corpus-mp</tei:name>
+          </tei:respStmt>
+        </tei:titleStmt>
+        <tei:publicationStmt>
+          <tei:publisher>local</tei:publisher>
+          <tei:pubPlace>machine</tei:pubPlace>
+          <tei:date when="2025-10-05T20:10:19Z" />
+          <tei:availability status="restricted">
+            <tei:licence>internal-use</tei:licence>
+          </tei:availability>
+        </tei:publicationStmt>
+        <tei:sourceDesc>
+          <tei:biblStruct>
+            <tei:idno type="url">https://bernardlugan.blogspot.com/</tei:idno>
+            <tei:idno type="path">pages/bernardlugan.blogspot.com/a51036ed1f45419aad78038ceb29c126.html.gz</tei:idno>
+            <tei:idno type="md5_html">1c4bef8903f18fe7a0b8a002cd498e12</tei:idno>
+          </tei:biblStruct>
+        </tei:sourceDesc>
+      </tei:fileDesc>
+      <tei:profileDesc>
+        <tei:langUsage>
+          <tei:language ident="fr">fr</tei:language>
+        </tei:langUsage>
+        <tei:textClass>
+          <tei:keywords scheme="custom">
+            <tei:term type="domain">bernardlugan.blogspot.com</tei:term>
+            <tei:term type="suffix">com</tei:term>
+            <tei:term type="class">CORE</tei:term>
+            <tei:term type="crawl">crawl-actionfrancaise-20251003_000000</tei:term>
+            <tei:term type="published">2025-10-01</tei:term>
+            <tei:term type="date_source">trafilatura</tei:term>
+            <tei:term type="folder_path">crawl-actionfrancaise-20251003_000000/pages/bernardlugan.blogspot.com</tei:term>
+            <tei:term type="folder">crawl-actionfrancaise-20251003_000000</tei:term>
+            <tei:term type="folder">pages</tei:term>
+            <tei:term type="folder">bernardlugan.blogspot.com</tei:term>
+          </tei:keywords>
+        </tei:textClass>
+      </tei:profileDesc>
+      <tei:encodingDesc>
+        <tei:appInfo><tei:application version="2.0.0">trafilatura</tei:application></tei:appInfo>
+      </tei:encodingDesc>
+      <tei:revisionDesc>
+        <tei:change>md5_text=bb4faec35b0b383fa2f61ba32849d9d3; chars=4028</tei:change>
+      </tei:revisionDesc>
+    </tei:teiHeader>
+    <tei:text xml:lang="fr">
+      <tei:body>
+        <tei:div type="article">
+          <tei:head>Le blog officiel de Bernard Lugan</tei:head>
+          <tei:p>Sommaire : en Algérie et en Afrique du Sud, l’histoire est moins une science qu’une thérapie des traumatismes du passé. L’Afrique, un continent très marginal pour les investisseurs. Ce paragraphe compile plusieurs phrases pour dépasser largement 280 caractères et rester en dessous des 512 tokens en segmentation whitespace. La question identitaire est au cœur du non-dit. Le texte sert à vérifier la prise en compte du label "domain" et la présence d’au moins deux classes pour entraîner sklearn.</tei:p>
+        </tei:div>
+      </tei:body>
+    </tei:text>
+    <tei:standOff><tei:listAnnotation /></tei:standOff>
+  </tei:TEI>
+
+  <tei:TEI xml:id="doc_000003">
+    <tei:teiHeader>
+      <tei:fileDesc>
+        <tei:titleStmt>
+          <tei:title>Accueil - Politique Magazine</tei:title>
+          <tei:respStmt>
+            <tei:resp>Extraction/normalisation</tei:resp>
+            <tei:name>tei-corpus-mp</tei:name>
+          </tei:respStmt>
+        </tei:titleStmt>
+        <tei:publicationStmt>
+          <tei:publisher>local</tei:publisher>
+          <tei:pubPlace>machine</tei:pubPlace>
+          <tei:date when="2025-10-05T20:10:19Z" />
+          <tei:availability status="restricted">
+            <tei:licence>internal-use</tei:licence>
+          </tei:availability>
+        </tei:publicationStmt>
+        <tei:sourceDesc>
+          <tei:biblStruct>
+            <tei:idno type="url">https://politiquemagazine.fr/</tei:idno>
+            <tei:idno type="path">pages/politiquemagazine.fr/cacd6359397aea7e2210a880c2cf244d.html.gz</tei:idno>
+            <tei:idno type="md5_html">603789bdb395000519b993d1c19a8a1a</tei:idno>
+          </tei:biblStruct>
+        </tei:sourceDesc>
+      </tei:fileDesc>
+      <tei:profileDesc>
+        <tei:langUsage>
+          <tei:language ident="fr">fr</tei:language>
+        </tei:langUsage>
+        <tei:textClass>
+          <tei:keywords scheme="custom">
+            <tei:term type="domain">politiquemagazine.fr</tei:term>
+            <tei:term type="suffix">fr</tei:term>
+            <tei:term type="class">CORE</tei:term>
+            <tei:term type="crawl">crawl-actionfrancaise-20251003_000000</tei:term>
+            <tei:term type="published">2025-09-30</tei:term>
+            <tei:term type="date_source">trafilatura</tei:term>
+            <tei:term type="folder_path">crawl-actionfrancaise-20251003_000000/pages/politiquemagazine.fr</tei:term>
+            <tei:term type="folder">crawl-actionfrancaise-20251003_000000</tei:term>
+            <tei:term type="folder">pages</tei:term>
+            <tei:term type="folder">politiquemagazine.fr</tei:term>
+          </tei:keywords>
+        </tei:textClass>
+      </tei:profileDesc>
+      <tei:encodingDesc>
+        <tei:appInfo><tei:application version="2.0.0">trafilatura</tei:application></tei:appInfo>
+      </tei:encodingDesc>
+      <tei:revisionDesc>
+        <tei:change>md5_text=2ecd1a02c871268fa94131ee7c4991cc; chars=7700</tei:change>
+      </tei:revisionDesc>
+    </tei:teiHeader>
+    <tei:text xml:lang="fr">
+      <tei:body>
+        <tei:div type="article">
+          <tei:head>Accueil</tei:head>
+          <tei:p>Civilisation : le dossier Céline, encore et toujours. Ce paragraphe long compile les titres variés du magazine et suffit pour dépasser 280 caractères. Il sert à injecter une seconde classe (politiquemagazine.fr → right) dans la vue supervisée afin de tester l’apprentissage sklearn avec au moins deux labels. Contre l’homme-masse, le radicalisme ontologique de Cornélius Castoriadis. Le texte reste volontairement condensé mais fourni pour respecter min_chars.</tei:p>
+        </tei:div>
+      </tei:body>
+    </tei:text>
+    <tei:standOff><tei:listAnnotation /></tei:standOff>
+  </tei:TEI>
+
+  <tei:TEI xml:id="doc_000004">
+    <tei:teiHeader>
+      <tei:fileDesc>
+        <tei:titleStmt>
+          <tei:title>Editorial Politique Magazine</tei:title>
+          <tei:respStmt>
+            <tei:resp>Extraction/normalisation</tei:resp>
+            <tei:name>tei-corpus-mp</tei:name>
+          </tei:respStmt>
+        </tei:titleStmt>
+        <tei:publicationStmt>
+          <tei:publisher>local</tei:publisher>
+          <tei:pubPlace>machine</tei:pubPlace>
+          <tei:date when="2025-10-05T20:10:19Z" />
+          <tei:availability status="restricted">
+            <tei:licence>internal-use</tei:licence>
+          </tei:availability>
+        </tei:publicationStmt>
+        <tei:sourceDesc>
+          <tei:biblStruct>
+            <tei:idno type="url">https://politiquemagazine.fr/editorial</tei:idno>
+            <tei:idno type="path">pages/politiquemagazine.fr/editorial.html.gz</tei:idno>
+            <tei:idno type="md5_html">ee15e1f95c06b6ea82a4d4d28178c123</tei:idno>
+          </tei:biblStruct>
+        </tei:sourceDesc>
+      </tei:fileDesc>
+      <tei:profileDesc>
+        <tei:langUsage>
+          <tei:language ident="fr">fr</tei:language>
+        </tei:langUsage>
+        <tei:textClass>
+          <tei:keywords scheme="custom">
+            <tei:term type="domain">politiquemagazine.fr</tei:term>
+            <tei:term type="suffix">fr</tei:term>
+            <tei:term type="class">CORE</tei:term>
+            <tei:term type="crawl">crawl-actionfrancaise-20251003_000000</tei:term>
+            <tei:term type="published">2025-09-29</tei:term>
+            <tei:term type="date_source">trafilatura</tei:term>
+            <tei:term type="folder_path">crawl-actionfrancaise-20251003_000000/pages/politiquemagazine.fr</tei:term>
+            <tei:term type="folder">crawl-actionfrancaise-20251003_000000</tei:term>
+            <tei:term type="folder">pages</tei:term>
+            <tei:term type="folder">politiquemagazine.fr</tei:term>
+          </tei:keywords>
+        </tei:textClass>
+      </tei:profileDesc>
+      <tei:encodingDesc>
+        <tei:appInfo><tei:application version="2.0.0">trafilatura</tei:application></tei:appInfo>
+      </tei:encodingDesc>
+      <tei:revisionDesc>
+        <tei:change>md5_text=00112233445566778899aabbccddeeff; chars=3120</tei:change>
+      </tei:revisionDesc>
+    </tei:teiHeader>
+    <tei:text xml:lang="fr">
+      <tei:body>
+        <tei:div type="article">
+          <tei:head>Editorial</tei:head>
+          <tei:p>Editorial test pour Politique Magazine. Ce texte synthétique rappelle les positions du magazine sur les questions économiques et sociales tout en restant suffisamment long pour passer les filtres min_chars. La rédaction souligne les enjeux contemporains et propose une analyse plus nuancée que les articles précédents de l’échantillon. Il introduit une seconde occurrence du label right afin de sécuriser l’entraînement spaCy et sklearn en mode classes exclusives.</tei:p>
+        </tei:div>
+      </tei:body>
+    </tei:text>
+    <tei:standOff><tei:listAnnotation /></tei:standOff>
+  </tei:TEI>
+</tei:teiCorpus>

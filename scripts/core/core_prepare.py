@@ -312,11 +312,16 @@ def build_view(params: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
     """
     corpus = params["corpus"]
     tei_path = corpus["corpus_path"]
-    label_field = params.get("label_field") or params.get("label_fields")
+    label_fields = params.get("label_fields")
+    label_field = params.get("label_field")
+    # Priorité à label_fields (liste) si présent, sinon label_field (héritage)
+    fields_for_labels = label_fields if label_fields is not None else label_field
     label_map_path = params.get("label_map")
     label_map = None
     if label_map_path:
-        label_map = load_label_map(label_map_path)
+        raw_map = load_label_map(label_map_path)
+        # Normaliser les clés du mapping pour absorber les variantes d'écriture
+        label_map = {normalize_label_value(str(k)): v for k, v in raw_map.items()}
 
     modality_filter = params.get("modality")  # ex: "web", "asr", etc.
     train_prop = float(params.get("train_prop", 0.8))
@@ -360,19 +365,19 @@ def build_view(params: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
         if modality_filter and doc_modality != modality_filter:
             continue
 
-        label_raw = extract_label_raw(elem, label_field)
+        label_raw = extract_label_raw(elem, fields_for_labels)
         if not label_raw:
             continue
 
         label_norm = normalize_label_value(label_raw)
 
         if label_map:
-            mapped = label_map.get(label_raw) or label_map.get(label_norm)
+            mapped = label_map.get(label_norm)
             if not mapped:
                 continue
             label = mapped
         else:
-            label = label_raw
+            label = label_norm
 
         label_counts[label] += 1
         docs.append(
@@ -454,6 +459,7 @@ def build_view(params: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
         "view": view,
         "modality_filter": modality_filter,
         "label_field": label_field,
+        "label_fields": label_fields,
         "label_map": label_map_path,
         "balance_strategy": balance_strategy,
         "balance_preset": balance_preset,

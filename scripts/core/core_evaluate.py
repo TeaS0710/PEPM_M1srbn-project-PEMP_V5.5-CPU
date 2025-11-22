@@ -218,8 +218,15 @@ def eval_spacy_model(params: Dict[str, Any], model_id: str) -> None:
         print(f"[core_evaluate:spacy] Modèle spaCy introuvable: {model_dir}, skip.")
         return
 
-    print(f"[core_evaluate:spacy] Chargement modèle depuis {model_dir}")
-    nlp = spacy.load(model_dir)
+    load_dir = model_dir
+    for cand in ("model-best", "model-last"):
+        cand_dir = model_dir / cand
+        if cand_dir.exists():
+            load_dir = cand_dir
+            break
+
+    print(f"[core_evaluate:spacy] Chargement modèle depuis {load_dir}")
+    nlp = spacy.load(load_dir)
 
     # On reconstruit le chemin vers les DocBin éventuels produits par core_prepare
     corpus_id = params.get("corpus_id", params.get("corpus", {}).get("corpus_id", "unknown_corpus"))

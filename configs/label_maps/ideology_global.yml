@@ -1,14 +1,13 @@
-# configs/label_maps/ideology_global.yml
+# Mapping des labels bruts (domain, crawl, ideology...) vers labels consolidés
+# Les clés sont normalisées (lowercase + séparateurs convertis en `_`), mais
+# tu peux les écrire "naturellement" : core_prepare les normalise avant lookup.
 
 mapping:
-  far_left: "gauche"
-  left: "gauche"
-  center_left: "centre"
-  center: "centre"
-  center_right: "centre"
-  right: "droite"
-  far_right: "droite"
+  actionfrancaise.net: far_right
+  bernardlugan.blogspot.com: far_right
+  politiquemagazine.fr: right
+  crawl-actionfrancaise-20251003_000000: far_right
 
 unknown_labels:
-  policy: "drop"  # ou "keep" ou "other"
-  other_label: "autre"
+  policy: "drop"  # drop (ignore) | keep (label_raw conservé) | other (basculer vers other_label)
+  other_label: "other"

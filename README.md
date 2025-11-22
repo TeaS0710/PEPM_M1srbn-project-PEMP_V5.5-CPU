@@ -30,6 +30,11 @@ V4 sert à :
    - `classification_report.txt`,
    - `meta_model.json`, `meta_eval.json` pour la reproductibilité.
 
+> Notes pratiques (robustesse) :
+> - les labels peuvent être fournis via `label_fields` (ordre de priorité) et les clés de `label_map` sont **normalisées** (lowercase + `_`) avant lookup ;
+> - les configs sklearn acceptent `ngram_range` en liste/str et sont converties en tuple, avec un `min_df` auto-clampé pour les jeux minuscules ;
+> - l'évaluation spaCy charge automatiquement `model-best/` ou `model-last/` si présents dans le dossier du modèle.
+
 Tout est piloté par :
 
 - des **profils** (`configs/profiles/*.yml`) qui décrivent une expérience,
@@ -265,6 +270,10 @@ view: "ideology_global"
 modality: "web"
 
 label_field: "ideology"
+label_fields:
+  - "ideology"
+  - "domain"
+  - "crawl"
 label_map: "configs/label_maps/ideology_global.yml"
 
 train_prop: 0.8
@@ -517,7 +526,8 @@ en fonction de `hardware.blas_threads`.
 | `corpus_id`        | profil        | string id | `"web1"`                                 | Pointe vers une entrée de `corpora.yml`.                        |
 | `view`             | profil        | string id | `"ideology_global"`                      | Vue supervisée (type de tâche / label).                         |
 | `modality`         | profil        | string id | `"web"`                                  | Modalité filtrée dans le TEI (web, asr, gold, …).               |
-| `label_field`      | profil        | string    | `"ideology"`                             | Nom du champ de label cible dans la vue.                        |
+| `label_field`      | profil        | string    | `"ideology"`                             | Champ principal de label (héritage V3/V4).                      |
+| `label_fields`     | profil        | list[str] | `["ideology", "domain", "crawl"]`      | Liste d’alternatives (prioritaire) pour extraire le label.      |
 | `label_map`        | profil        | chemin    | `configs/label_maps/ideology_global.yml` | Mapping labels bruts → labels consolidés.                       |
 | `train_prop`       | profil        | float     | `0.8`                                    | Proportion de docs dans le split train vs job.                  |
 | `min_chars`        | profil        | int       | `280`                                    | Longueur minimale de texte (en caractères).                     |
