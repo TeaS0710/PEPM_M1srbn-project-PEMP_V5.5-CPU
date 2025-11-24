@@ -1,4 +1,4 @@
-# PEPM_M1srbn-project-PEMP_V4.05-CPU
+# PEPM_M1srbn-project-PEMP_V5-CPU
 
 Pipeline **config-first** pour l’analyse de textes politiques (idéologie) à grande échelle, basé sur :
 
