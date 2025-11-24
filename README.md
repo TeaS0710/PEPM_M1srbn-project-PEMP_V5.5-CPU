@@ -93,6 +93,50 @@ ls -lh data/raw/web1/corpus.xml
 
 ---
 
+## Orchestrateur V5 (`superior`)
+
+La brique `superior` permet de piloter automatiquement le core (prepare/train/evaluate)
+en explorant des grilles de paramètres définies dans `configs/superior/*.yml`.
+
+Exemple minimal :
+
+```bash
+# Activer l'environnement virtuel
+source .venv/bin/activate
+
+# Lancer l'orchestrateur en mode séquentiel, avec reprise des runs déjà réussis
+python -m scripts.superior.superior_orchestrator \
+  --exp-config configs/superior/exp_ideo_balancing_sweep.yml \
+  --parallel 1 \
+  --max-ram-gb 14 \
+  --resume
+```
+
+Ou via le Makefile :
+
+```bash
+make superior \
+  SUPERIOR_EXP_CONFIG=configs/superior/exp_ideo_balancing_sweep.yml \
+  SUPERIOR_PARALLEL=1 \
+  SUPERIOR_MAX_RAM_GB=14
+```
+
+Les sorties sont écrites dans :
+
+* `superior/<exp_id>/plan.tsv` : plan complet des runs prévus.
+* `superior/<exp_id>/runs.tsv` : statut détaillé de chaque run.
+* `superior/<exp_id>/logs/` : logs individuels (`run_*.log`).
+* `superior/<exp_id>/metrics_global.tsv` : agrégation des métriques.
+* `superior/<exp_id>/plots/` : graphes générés par le hook `curves` (si configuré).
+* `superior/<exp_id>/report.md` : rapport Markdown de synthèse.
+
+Le fichier `configs/superior/exp_ideo_balancing_sweep.yml` montre comment combiner des axes
+de variations (`axes`) pour tester différentes stratégies (familles de modèles, équilibrage,
+proportions d'entraînement, etc.). Il suffit d'ajuster les `make_vars`/`overrides` dans ce
+YAML pour explorer de nouvelles combinaisons.
+
+---
+
 ## 3. Organisation du dépôt
 
 Schéma simplifié :

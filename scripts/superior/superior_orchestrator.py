@@ -285,6 +285,7 @@ RUN_COLUMNS = [
     "corpus_id",
     "dataset_id",
     "view",
+    "train_prop",
     "axis_values_json",
     "make_vars_json",
     "overrides_json",
@@ -351,28 +352,71 @@ def _build_override_items(overrides: Dict[str, Any]) -> List[str]:
     return [f"{k}={_format_override_value(v)}" for k, v in flat.items()]
 
 
-def _infer_metadata(make_vars: Dict[str, str], overrides: Dict[str, Any]) -> Dict[str, Any]:
-    dataset_id = (
-        overrides.get("dataset_id")
-        or make_vars.get("DATASET_ID")
-        or make_vars.get("CORPUS_ID")
-    )
-    view = overrides.get("ideology.view") or overrides.get("view")
-    family = make_vars.get("FAMILY") or ""
-    model_id = make_vars.get("MODEL_ID") or ""
-    corpus_id = make_vars.get("CORPUS_ID") or ""
+def _lookup_nested(overrides: Dict[str, Any], dotted_key: str) -> Optional[Any]:
+    """Best-effort nested lookup using dotted paths."""
 
-    metrics_path = ""
-    if dataset_id and view:
-        metrics_path = os.path.join("reports", str(dataset_id), str(view), "metrics.json")
+    if dotted_key in overrides:
+        return overrides.get(dotted_key)
+    parts = dotted_key.split(".")
+    current: Any = overrides
+    for part in parts:
+        if not isinstance(current, dict) or part not in current:
+            return None
+        current = current[part]
+    return current
+
+
+def _first_in_list(val: Any) -> Optional[str]:
+    if isinstance(val, list) and val:
+        return str(val[0])
+    if isinstance(val, str):
+        if "," in val:
+            return val.split(",", 1)[0]
+        return val
+    return None
+
+
+def _infer_metadata(
+    make_vars: Dict[str, str], overrides: Dict[str, Any], profile: Optional[str] = None
+) -> Dict[str, Any]:
+    dataset_id = overrides.get("dataset_id") or make_vars.get("CORPUS_ID")
+    if not dataset_id:
+        dataset_id = profile or "unknown_dataset"
+
+    view = overrides.get("view")
+    if view is None:
+        view = _lookup_nested(overrides, "ideology.view")
+    if view is None:
+        view = "ideology_global"
+
+    family = make_vars.get("FAMILY") or make_vars.get("family") or "unknown_family"
+
+    model_id: Optional[str] = make_vars.get("MODEL_ID") or make_vars.get("model_id")
+    if not model_id:
+        if family == "sklearn":
+            model_id = _first_in_list(overrides.get("models_sklearn"))
+        elif family == "spacy":
+            model_id = _first_in_list(overrides.get("models_spacy"))
+        elif family == "hf":
+            model_id = _first_in_list(overrides.get("models_hf"))
+
+    corpus_id = make_vars.get("CORPUS_ID") or ""
+    train_prop = make_vars.get("TRAIN_PROP") or ""
+
+    metrics_path: Optional[str] = None
+    if dataset_id and view and family and model_id:
+        metrics_path = os.path.join(
+            "reports", str(dataset_id), str(view), str(family), str(model_id), "metrics.json"
+        )
 
     return {
         "dataset_id": dataset_id or "",
         "view": view or "",
-        "family": family,
-        "model_id": model_id,
+        "family": family or "",
+        "model_id": model_id or "",
         "corpus_id": corpus_id,
-        "metrics_path": metrics_path,
+        "train_prop": train_prop,
+        "metrics_path": metrics_path or "",
     }
 
 
@@ -442,8 +486,24 @@ def run_analysis_hooks(exp_config: ExpConfig, runs_tsv_path: Path) -> None:
                 with open(metrics_path, "r", encoding="utf-8") as f:
                     metrics = json.load(f)
             except Exception:
+                print(f"[analysis_hooks] Failed to load metrics at {metrics_path}, skipping.")
                 metrics = {}
-        metrics_rows.append({**row, **metrics})
+        else:
+            if metrics_path:
+                print(
+                    f"[analysis_hooks] metrics.json not found at {metrics_path} for run {row.get('run_id')}"
+                )
+        enriched_row = {**row, **metrics}
+        # Propagate TRAIN_PROP if available in make_vars_json to ease plotting hooks
+        make_vars_json = row.get("make_vars_json")
+        if make_vars_json:
+            try:
+                make_vars_data = json.loads(make_vars_json)
+                if isinstance(make_vars_data, dict) and "TRAIN_PROP" in make_vars_data:
+                    enriched_row["TRAIN_PROP"] = make_vars_data.get("TRAIN_PROP")
+            except Exception:
+                pass
+        metrics_rows.append(enriched_row)
 
     metrics_global_path = runs_dir / "metrics_global.tsv"
     if metrics_rows:
@@ -457,9 +517,84 @@ def run_analysis_hooks(exp_config: ExpConfig, runs_tsv_path: Path) -> None:
 
         elif hook.get("type") == "curves":
             curves_path = runs_dir / "metrics_global.tsv"
-            if curves_path.exists():
-                # Placeholder: curves generation can be added later (matplotlib)
-                pass
+            if not curves_path.exists():
+                print(f"[analysis_hooks] metrics_global.tsv missing at {curves_path}, skipping curves")
+                continue
+            try:
+                import matplotlib.pyplot as plt
+            except ImportError:
+                print("[analysis_hooks] matplotlib not installed, cannot generate curves")
+                continue
+
+            with curves_path.open("r", encoding="utf-8") as f:
+                reader = csv.DictReader(f, delimiter="\t")
+                curves_rows = list(reader)
+
+            if not curves_rows:
+                print("[analysis_hooks] metrics_global.tsv is empty, skipping curves")
+                continue
+
+            metrics = hook.get("metrics") or []
+            x_axis = hook.get("x_axis")
+            group_by = hook.get("group_by") or []
+
+            all_columns = set().union(*[row.keys() for row in curves_rows])
+            required_columns = set(metrics + ([x_axis] if x_axis else []) + group_by)
+            missing = [col for col in required_columns if col and col not in all_columns]
+            if missing:
+                print(
+                    f"[analysis_hooks] Missing columns for curves ({', '.join(missing)}), skipping hook"
+                )
+                continue
+
+            plots_dir = runs_dir / "plots"
+            plots_dir.mkdir(parents=True, exist_ok=True)
+            generated: List[Path] = []
+
+            for metric in metrics:
+                grouped: Dict[tuple, List[tuple]] = {}
+                for row in curves_rows:
+                    try:
+                        x_val_raw = row.get(x_axis, "") if x_axis else None
+                        x_val = float(x_val_raw) if x_val_raw not in (None, "") else None
+                        y_val_raw = row.get(metric, "")
+                        y_val = float(y_val_raw) if y_val_raw not in (None, "") else None
+                    except ValueError:
+                        continue
+                    if x_val is None or y_val is None:
+                        continue
+                    group_key = tuple(row.get(col, "") for col in group_by)
+                    grouped.setdefault(group_key, []).append((x_val, y_val))
+
+                if not grouped:
+                    print(
+                        f"[analysis_hooks] No data for metric '{metric}' with x_axis '{x_axis}', skipping"
+                    )
+                    continue
+
+                plt.figure()
+                for group_key, points in grouped.items():
+                    points_sorted = sorted(points, key=lambda p: p[0])
+                    xs, ys = zip(*points_sorted)
+                    label = ", ".join(str(v) for v in group_key if v)
+                    plt.plot(xs, ys, marker="o", label=label or None)
+                plt.xlabel(x_axis or "index")
+                plt.ylabel(metric)
+                if group_by:
+                    plt.legend()
+                plt.grid(True, linestyle=":", alpha=0.4)
+
+                plot_path = plots_dir / f"{metric}__vs__{x_axis}.png"
+                plt.tight_layout()
+                plt.savefig(plot_path)
+                plt.close()
+                generated.append(plot_path)
+
+            if generated:
+                print(
+                    f"[analysis_hooks] Generated {len(generated)} plot(s): "
+                    + ", ".join(str(p.name) for p in generated)
+                )
 
 
 def _write_report_markdown(path: Path, runs: Dict[str, Dict[str, Any]]) -> None:
@@ -489,18 +624,25 @@ def _write_report_markdown(path: Path, runs: Dict[str, Dict[str, Any]]) -> None:
 # Orchestration entry point
 # ---------------------------------------------------------------------------
 
-def orchestrate(args: argparse.Namespace) -> None:
-    exp_config = load_exp_config(args.exp_config)
+def orchestrate(
+    exp_config_path: str,
+    parallel: Optional[int] = None,
+    max_ram_gb: Optional[float] = None,
+    max_runs: Optional[int] = None,
+    resume: bool = False,
+    dry_run: bool = False,
+) -> None:
+    exp_config = load_exp_config(exp_config_path)
 
     # CLI overrides scheduler values
-    if args.parallel is not None:
-        exp_config.scheduler.parallel = int(args.parallel)
-    if args.max_ram_gb is not None:
-        exp_config.scheduler.max_ram_gb = float(args.max_ram_gb)
+    if parallel is not None:
+        exp_config.scheduler.parallel = int(parallel)
+    if max_ram_gb is not None:
+        exp_config.scheduler.max_ram_gb = float(max_ram_gb)
 
     plan = generate_run_plan(exp_config)
-    if args.max_runs is not None:
-        plan = plan[: int(args.max_runs)]
+    if max_runs is not None:
+        plan = plan[: int(max_runs)]
 
     exp_dir = Path("superior") / exp_config.exp_id
     logs_dir = exp_dir / "logs"
@@ -510,7 +652,7 @@ def orchestrate(args: argparse.Namespace) -> None:
     exp_dir.mkdir(parents=True, exist_ok=True)
     write_plan_tsv(plan, plan_tsv)
 
-    if args.dry_run:
+    if dry_run:
         print(f"[DRY-RUN] Generated {len(plan)} runs for exp_id={exp_config.exp_id}")
         for run in plan:
             print(
@@ -525,7 +667,7 @@ def orchestrate(args: argparse.Namespace) -> None:
     pending_runs: List[RunSpec] = []
     for run in plan:
         if (
-            args.resume
+            resume
             and run.run_id in runs_records
             and runs_records[run.run_id].get("status") == "success"
         ):
@@ -546,11 +688,14 @@ def orchestrate(args: argparse.Namespace) -> None:
             if current_weight + next_weight > exp_config.scheduler.max_weight:
                 break
             pending_runs.pop(0)
-            proc = _launch_run(next_run, logs_dir, args)
+            class DummyArgs:
+                max_ram_gb = max_ram_gb
+
+            proc = _launch_run(next_run, logs_dir, DummyArgs())
             active[next_run.run_id] = proc
             start_times[next_run.run_id] = time.time()
 
-            meta = _infer_metadata(next_run.make_vars, next_run.overrides)
+            meta = _infer_metadata(next_run.make_vars, next_run.overrides, next_run.profile)
             runs_records[next_run.run_id] = {
                 "run_id": next_run.run_id,
                 "exp_id": next_run.exp_id,
@@ -580,9 +725,14 @@ def orchestrate(args: argparse.Namespace) -> None:
             started_at = start_times.get(run_id, time.time())
             duration = time.time() - started_at
             row = runs_records.get(run_id, {})
+            status = "success"
+            if ret == 99:
+                status = "oom"
+            elif ret != 0:
+                status = "failed"
             row.update(
                 {
-                    "status": "success" if ret == 0 else "failed",
+                    "status": status,
                     "return_code": ret,
                     "finished_at": time.time(),
                     "duration_s": duration,
@@ -612,7 +762,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--max-ram-gb",
         type=float,
         default=None,
-        help="Max RAM budget (GB) – reserved for future monitoring",
+        help="Max RAM budget (GB) propagated to run_single for monitoring",
     )
     parser.add_argument("--max-runs", type=int, default=None, help="Limit number of runs (debug)")
     parser.add_argument("--resume", action="store_true", help="Skip runs already marked success in runs.tsv")
@@ -623,7 +773,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> None:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
-    orchestrate(args)
+    orchestrate(
+        exp_config_path=args.exp_config,
+        parallel=args.parallel,
+        max_ram_gb=args.max_ram_gb,
+        max_runs=args.max_runs,
+        resume=args.resume,
+        dry_run=args.dry_run,
+    )
 
 
 if __name__ == "__main__":

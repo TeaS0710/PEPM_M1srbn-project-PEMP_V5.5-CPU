@@ -1,16 +1,23 @@
 """Execute a single run by delegating to ``make run``.
 
 This script is intentionally lightweight: it translates the run specification
-into a Make invocation, redirects logs, and propagates the exit code. RAM
-monitoring is left as a TODO for V5.3.
+into a Make invocation, redirects logs, and propagates the exit code. When a
+RAM budget is provided, it monitors the child process (if ``psutil`` is
+available) and terminates runs that exceed the limit.
 """
 from __future__ import annotations
 
 import argparse
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Dict, List, Sequence
+
+try:
+    import psutil
+except ImportError:  # pragma: no cover - optional dependency
+    psutil = None
 
 
 def _parse_key_vals(items: List[str]) -> Dict[str, str]:
@@ -70,16 +77,60 @@ def run_single(args: argparse.Namespace) -> int:
 
     cmd = _build_command(args)
 
-    if args.max_ram_mb:
-        # Placeholder for V5.3+ where psutil-based monitoring will be added.
-        print(
-            f"[run_single] max_ram_mb={args.max_ram_mb} provided but RAM monitoring is not implemented yet.",
-            file=sys.stderr,
-        )
+    if not args.max_ram_mb or psutil is None:
+        if args.max_ram_mb and psutil is None:
+            print(
+                "[run_single] psutil not installed – RAM monitoring disabled despite max_ram_mb flag",
+                file=sys.stderr,
+            )
+        with log_path.open("w", encoding="utf-8") as log_file:
+            process = subprocess.run(cmd, stdout=log_file, stderr=log_file)
+        return process.returncode
 
+    # psutil-based monitoring
+    limit_bytes = int(args.max_ram_mb) * 1024 * 1024
+    peak_rss = 0
+    return_code: int | None = None
     with log_path.open("w", encoding="utf-8") as log_file:
-        process = subprocess.run(cmd, stdout=log_file, stderr=log_file)
-    return process.returncode
+        proc = subprocess.Popen(cmd, stdout=log_file, stderr=log_file)
+        ps_proc = psutil.Process(proc.pid)
+
+        while True:
+            ret = proc.poll()
+            if ret is not None:
+                return_code = ret
+                break
+
+            try:
+                rss = ps_proc.memory_info().rss
+            except psutil.NoSuchProcess:
+                return_code = proc.poll()
+                break
+
+            peak_rss = max(peak_rss, rss)
+            if rss > limit_bytes:
+                print(
+                    "[run_single] RAM limit exceeded, killing run", file=sys.stderr
+                )
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                return_code = 99
+                break
+
+            time.sleep(1.0)
+
+        if return_code is None:
+            return_code = proc.wait()
+
+    peak_mb = peak_rss / (1024 * 1024)
+    print(
+        f"[run_single] return_code={return_code} peak_rss_mb={peak_mb:.2f}",
+        file=sys.stderr,
+    )
+    return return_code
 
 
 def main(argv: Sequence[str] | None = None) -> None:

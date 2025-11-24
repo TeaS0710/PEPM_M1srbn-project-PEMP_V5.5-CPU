@@ -280,8 +280,26 @@ ideology_all:
 	$(MAKE) ideology_from_yaml
 
 clean:
-	@echo "[clean] Suppression des fichiers intermédiaires, modèles et rapports..."
-	rm -rf data/interim/* \
-	data/processed/* \
-	models/*
-	@echo "[clean] OK"
+        @echo "[clean] Suppression des fichiers intermédiaires, modèles et rapports..."
+        rm -rf data/interim/* \
+        data/processed/* \
+        models/*
+        @echo "[clean] OK"
+
+# =========================
+# Orchestrateur V5 (superior)
+# =========================
+
+SUPERIOR_EXP_CONFIG ?= configs/superior/exp_ideo_balancing_sweep.yml
+SUPERIOR_PARALLEL   ?= 1
+SUPERIOR_MAX_RAM_GB ?= 14
+
+.PHONY: superior
+
+superior:
+	@echo "[superior] Orchestration V5 - exp_config=$(SUPERIOR_EXP_CONFIG)"
+	$(PYTHON) -m scripts.superior.superior_orchestrator \
+		--exp-config $(SUPERIOR_EXP_CONFIG) \
+		--parallel $(SUPERIOR_PARALLEL) \
+		--max-ram-gb $(SUPERIOR_MAX_RAM_GB) \
+		--resume
