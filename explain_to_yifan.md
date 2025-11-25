@@ -365,8 +365,6 @@ Une fois que `models.yml` et `ideo_quick` sont ok, on peut tester `superior` en 
 
 ---
 
-# 5. Idée de diapos (pour un mini slide deck)
-
 ### Diapo 1 – Contexte
 
 * Objectif : pipeline de classification de textes idéologiques (web, asr, multi-corpus).
