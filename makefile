@@ -33,6 +33,14 @@ export PYTHONPATH	:=.
 
 AUTO_OVERRIDES		:=
 
+SUPERIOR_EXP_CONFIG	?= configs/superior/exp_$(SUPERIOR_EXP_ID).yml
+SUPERIOR_PARALLEL	?= 1
+SUPERIOR_MAX_RAM_GB	?= 14
+SUPERIOR_EXP_ID		?= ideo_balancing_sweep
+POST_ANALYSIS_SCRIPT	?= scripts/analysis/post_analysis_generic.py
+
+
+
 ifneq ($(strip $(CORPUS_ID)),)
 AUTO_OVERRIDES		+=corpus_id=$(CORPUS_ID)
 endif
@@ -79,7 +87,10 @@ FAMILY_FLAG		=$(if $(FAMILY),--only-family $(FAMILY),)
 	init_dirs venv install setup \
 	check_scripts diagnostics \
 	sysinfo \
-	clean
+	clean \
+	superior \
+	superior_analysis \
+	superior_full
 
 help:
 	@echo "Pipeline V4 (config-first)"
@@ -286,12 +297,6 @@ clean:
 	models/*
 	@echo "[clean] OK"
 
-SUPERIOR_EXP_CONFIG ?= configs/superior/exp_ideo_balancing_sweep.yml
-SUPERIOR_PARALLEL   ?= 1
-SUPERIOR_MAX_RAM_GB ?= 14
-
-.PHONY: superior
-
 superior:
 	@echo "[superior] Orchestration V5 - exp_config=$(SUPERIOR_EXP_CONFIG)"
 	$(PYTHON) -m scripts.superior.superior_orchestrator \
@@ -299,3 +304,10 @@ superior:
 		--parallel $(SUPERIOR_PARALLEL) \
 		--max-ram-gb $(SUPERIOR_MAX_RAM_GB) \
 		--resume
+
+superior_analysis:
+	@echo "[superior_analysis] Post-analyse générique pour exp_id=$(SUPERIOR_EXP_ID)"
+	$(PYTHON) $(POST_ANALYSIS_SCRIPT) --exp-id $(SUPERIOR_EXP_ID)
+
+superior_full: superior superior_analysis
+	@echo "[superior_full] Orchestration + post-analyse terminées pour exp_id=$(SUPERIOR_EXP_ID)"

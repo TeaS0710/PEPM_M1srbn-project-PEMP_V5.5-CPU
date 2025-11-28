@@ -17,3 +17,8 @@ lxml>=5.0
 
 # Post-traitement / agrégation
 pandas>=2.2
+
+matplotlib>=3.8
+
+# (run_single)
+psutil>=5.9
