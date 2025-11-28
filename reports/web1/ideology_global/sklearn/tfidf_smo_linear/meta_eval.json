@@ -6,6 +6,6 @@
   "view": "ideology_global",
   "family": "sklearn",
   "model_id": "tfidf_smo_linear",
-  "n_eval_docs": 450,
+  "n_eval_docs": 4500,
   "pipeline_version": "4.0.0-dev"
 }
